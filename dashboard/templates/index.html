@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+
+{% block title %}ThreatOps — Analyze Any IP Address{% endblock %}
+
+{% block content %}
+<!-- Hero Section -->
+<section class="hero-clean">
+    <h1 class="hero-heading-clean">Analyze Any IP Address</h1>
+    <p class="hero-subtitle-clean">Real-time threat intelligence powered by AbuseIPDB and Shodan. Paste any IP to get instant abuse reports, open ports, and risk assessment.</p>
+
+    <!-- Search Form -->
+    <form action="/analyze" method="POST" class="search-form-clean">
+        <input type="text" name="ip" class="search-input-clean" placeholder="> enter ip address" required autocomplete="off" spellcheck="false">
+        <button type="submit" class="search-btn-clean">Analyze</button>
+    </form>
+</section>
+
+<!-- Three Feature Cards Grid -->
+<section class="features-grid-clean">
+    <div class="feature-card-clean">
+        <div class="feature-icon-clean">🛡️</div>
+        <h3 class="feature-title-clean">Abuse Intelligence</h3>
+        <p class="feature-desc-clean">Direct querying of AbuseIPDB confidence metrics, total reports, country geolocation, and ISP parameters.</p>
+    </div>
+
+    <div class="feature-card-clean">
+        <div class="feature-icon-clean">🌐</div>
+        <h3 class="feature-title-clean">Port Analysis</h3>
+        <p class="feature-desc-clean">Shodan surface host detection indexing exposed ports, running protocols, and public internet availability.</p>
+    </div>
+
+    <div class="feature-card-clean">
+        <div class="feature-icon-clean">⚡</div>
+        <h3 class="feature-title-clean">Risk Scoring</h3>
+        <p class="feature-desc-clean">Automated categorization classifying risk levels into Critical, High, Medium, and Low threat tiers.</p>
+    </div>
+</section>
+{% endblock %}

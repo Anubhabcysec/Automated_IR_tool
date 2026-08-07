@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+
+{% block title %}THREAT LOG HISTORY - Threat Intel Ops{% endblock %}
+
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; flex-wrap: wrap; gap: 1rem;">
+    <div>
+        <h1 class="hero-title" style="font-size: 2.2rem; text-align: left; margin-bottom: 0.2rem;">HISTORICAL AUDIT LOG</h1>
+        <p style="color: var(--text-grey); font-size: 0.95rem;">Audit log of all previously analyzed target IP addresses.</p>
+    </div>
+    {% if history %}
+    <form action="/history/clear" method="POST" onsubmit="return confirm('Are you sure you want to clear search history log?');">
+        <button type="submit" class="terminal-btn" style="background: transparent; border: 1px solid var(--accent-red); color: var(--accent-red); font-size: 0.9rem; padding: 0.5rem 1rem;">
+            CLEAR LOG 🗑️
+        </button>
+    </form>
+    {% endif %}
+</div>
+
+<section class="threats-section">
+    {% if history %}
+    <div class="table-wrapper">
+        <table class="threat-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>IP ADDRESS</th>
+                    <th>RISK LEVEL</th>
+                    <th>SEARCHED TIME</th>
+                    <th>ACTION</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in history %}
+                <tr>
+                    <td style="color: var(--text-grey); font-size: 0.85rem;">#{{ item.id }}</td>
+                    <td style="font-weight: bold; color: var(--text-white);">
+                        <a href="/report/{{ item.ip_address }}" style="color: var(--text-white); text-decoration: none;">
+                            {{ item.ip_address }}
+                        </a>
+                    </td>
+                    <td>
+                        {% if item.risk_level == 'CRITICAL' %}
+                            <span class="badge-risk badge-critical">CRITICAL</span>
+                        {% elif item.risk_level == 'HIGH' %}
+                            <span class="badge-risk badge-high">HIGH</span>
+                        {% elif item.risk_level == 'MEDIUM' %}
+                            <span class="badge-risk badge-medium">MEDIUM</span>
+                        {% else %}
+                            <span class="badge-risk badge-low">LOW</span>
+                        {% endif %}
+                    </td>
+                    <td style="color: var(--text-grey); font-size: 0.85rem;">
+                        {{ item.searched_at.strftime('%Y-%m-%d %H:%M:%S UTC') if item.searched_at else 'N/A' }}
+                    </td>
+                    <td>
+                        <a href="/report/{{ item.ip_address }}" class="terminal-btn" style="padding: 0.3rem 0.75rem; font-size: 0.85rem; text-decoration: none;">
+                            VIEW REPORT 🔍
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div style="text-align: center; padding: 3rem 1rem;">
+        <div style="font-size: 3rem; margin-bottom: 1rem; color: var(--accent-red);">🔍</div>
+        <h3 style="color: var(--text-white); font-size: 1.25rem; margin-bottom: 0.5rem;">NO THREAT LOGS FOUND</h3>
+        <p style="color: var(--text-grey); margin-bottom: 1.5rem;">No historical IP queries recorded in the database.</p>
+        <a href="/" class="terminal-btn" style="text-decoration: none; display: inline-block;">ANALYZE AN IP NOW</a>
+    </div>
+    {% endif %}
+</section>
+{% endblock %}

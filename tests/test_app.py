@@ -1,0 +1,92 @@
+import unittest
+import json
+from unittest.mock import patch, MagicMock
+from app import app
+from database.models import SearchHistory, IPReport, create_tables
+from sqlalchemy.orm import sessionmaker
+
+class TestThreatIntelAppRoutes(unittest.TestCase):
+    def setUp(self):
+        app.config['TESTING'] = True
+        self.engine = create_tables("sqlite:///:memory:")
+        self.Session = sessionmaker(bind=self.engine)
+        self.client = app.test_client()
+
+    def test_home_route(self):
+        """Test GET / returns home landing page."""
+        response = self.client.get('/')
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b'Analyze Any IP Address', response.data)
+
+    def test_analyze_post_valid_and_invalid(self):
+        """Test POST /analyze format validation."""
+        # Valid IP
+        res_valid = self.client.post('/analyze', data={'ip': '8.8.8.8'})
+        self.assertEqual(res_valid.status_code, 302)
+        self.assertIn('/report/8.8.8.8', res_valid.headers['Location'])
+
+        # Invalid IP
+        res_invalid = self.client.post('/analyze', data={'ip': 'not-an-ip'}, follow_redirects=True)
+        self.assertEqual(res_invalid.status_code, 200)
+        self.assertIn(b'is not a valid IPv4 or IPv6 address', res_invalid.data)
+
+    @patch('app.analyze_ip')
+    def test_api_analyze_route(self, mock_analyze_ip):
+        """Test GET /api/analyze/<ip> calls analyze_ip and returns JSON."""
+        mock_analyze_ip.return_value = {
+            "ip": "1.1.1.1",
+            "abuse_score": 0,
+            "total_reports": 0,
+            "country": "US",
+            "isp": "Cloudflare",
+            "open_ports": [53, 80, 443],
+            "vulnerabilities": [],
+            "risk_level": "LOW"
+        }
+
+        # Valid IP request
+        response = self.client.get('/api/analyze/1.1.1.1')
+        self.assertEqual(response.status_code, 200)
+        data = json.loads(response.data)
+        self.assertEqual(data["status"], "success")
+        self.assertEqual(data["data"]["ip"], "1.1.1.1")
+        self.assertEqual(data["data"]["risk_level"], "LOW")
+        mock_analyze_ip.assert_called_once_with("1.1.1.1")
+
+        # Invalid IP request
+        res_invalid = self.client.get('/api/analyze/invalid-ip')
+        self.assertEqual(res_invalid.status_code, 400)
+
+    @patch('app.analyze_ip')
+    def test_report_route(self, mock_analyze_ip):
+        """Test GET /report/<ip> calls analyze_ip and renders report.html."""
+        mock_analyze_ip.return_value = {
+            "ip": "8.8.8.8",
+            "abuse_score": 10,
+            "total_reports": 2,
+            "country": "US",
+            "isp": "Google LLC",
+            "open_ports": [53],
+            "vulnerabilities": [],
+            "risk_level": "LOW"
+        }
+
+        response = self.client.get('/report/8.8.8.8')
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b'8.8.8.8', response.data)
+        self.assertIn(b'TARGET ASSESSMENT REPORT', response.data)
+        mock_analyze_ip.assert_called_once_with("8.8.8.8")
+
+    def test_history_route(self):
+        """Test GET /history queries SearchHistory from DB and renders history.html."""
+        session = self.Session()
+        log = SearchHistory(ip_address="9.9.9.9", risk_level="HIGH")
+        session.add(log)
+        session.commit()
+        session.close()
+
+        response = self.client.get('/history')
+        self.assertEqual(response.status_code, 200)
+
+if __name__ == '__main__':
+    unittest.main()

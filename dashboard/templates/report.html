@@ -1,0 +1,216 @@
+{% extends "base.html" %}
+
+{% block title %}THREAT REPORT - {{ ip }}{% endblock %}
+
+{% block content %}
+<!-- Top Header -->
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; flex-wrap: wrap; gap: 1rem;">
+    <div>
+        <span style="color: var(--text-grey); font-size: 0.9rem; letter-spacing: 1px;">TARGET ASSESSMENT REPORT</span>
+        <h1 style="font-size: 2.5rem; color: var(--text-white); text-shadow: 0 0 10px rgba(255, 34, 51, 0.4); margin-top: 0.2rem;">
+            {{ ip }}
+        </h1>
+    </div>
+    <div style="display: flex; gap: 1rem; align-items: center;">
+        <a href="/api/analyze/{{ ip }}" target="_blank" class="terminal-btn" style="padding: 0.6rem 1.2rem; font-size: 0.9rem; background: transparent; border: 1px solid var(--accent-red); color: var(--accent-red);">
+            JSON API 🔗
+        </a>
+        <a href="/" class="terminal-btn" style="padding: 0.6rem 1.2rem; font-size: 0.9rem;">
+            NEW SEARCH 🔍
+        </a>
+    </div>
+</div>
+
+<!-- Risk Level Banner -->
+{% set risk = result.risk_level if result and result.risk_level else 'LOW' %}
+<div class="stat-card" style="margin-bottom: 2rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1.5rem; border-top: None; border-left: 5px solid {% if risk == 'CRITICAL' %}#ff2233{% elif risk == 'HIGH' %}#ff7822{% elif risk == 'MEDIUM' %}#ffc822{% else %}#22ff78{% endif %};">
+    <div>
+        <div style="font-size: 0.85rem; color: var(--text-grey); letter-spacing: 1px;">THREAT RISK LEVEL ASSESSMENT</div>
+        <div style="font-size: 2.2rem; font-weight: bold; color: var(--text-white); margin-top: 0.2rem;">
+            SYSTEM EVALUATION: {{ risk }}
+        </div>
+    </div>
+    <div>
+        {% if risk == 'CRITICAL' %}
+            <span class="badge-risk badge-critical" style="font-size: 1.2rem; padding: 0.6rem 1.5rem;">⚠️ CRITICAL THREAT</span>
+        {% elif risk == 'HIGH' %}
+            <span class="badge-risk badge-high" style="font-size: 1.2rem; padding: 0.6rem 1.5rem;">⚡ HIGH THREAT</span>
+        {% elif risk == 'MEDIUM' %}
+            <span class="badge-risk badge-medium" style="font-size: 1.2rem; padding: 0.6rem 1.5rem;">⚡ MEDIUM THREAT</span>
+        {% else %}
+            <span class="badge-risk badge-low" style="font-size: 1.2rem; padding: 0.6rem 1.5rem;">🛡️ LOW / CLEAN</span>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Four Stat Cards Row -->
+<div class="cards-grid" style="grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); margin-bottom: 2.5rem;">
+    <!-- Card 1: Abuse Score -->
+    <div class="stat-card">
+        <div class="card-icon">◉</div>
+        <div class="card-title" style="font-size: 0.9rem; color: var(--text-grey);">ABUSE SCORE</div>
+        <div style="font-size: 2rem; font-weight: bold; color: {% if (result.abuse_score if result else 0) > 50 %}var(--accent-red){% else %}var(--text-white){% endif %};">
+            {{ result.abuse_score if result else 0 }}%
+        </div>
+    </div>
+
+    <!-- Card 2: Total Reports -->
+    <div class="stat-card">
+        <div class="card-icon">⚠</div>
+        <div class="card-title" style="font-size: 0.9rem; color: var(--text-grey);">TOTAL REPORTS</div>
+        <div style="font-size: 2rem; font-weight: bold; color: var(--text-white);">
+            {{ result.total_reports if result else 0 }}
+        </div>
+    </div>
+
+    <!-- Card 3: Country -->
+    <div class="stat-card">
+        <div class="card-icon">🌐</div>
+        <div class="card-title" style="font-size: 0.9rem; color: var(--text-grey);">COUNTRY</div>
+        <div style="font-size: 2rem; font-weight: bold; color: var(--text-white);">
+            {{ result.country if result else 'N/A' }}
+        </div>
+    </div>
+
+    <!-- Card 4: ISP -->
+    <div class="stat-card">
+        <div class="card-icon">⬡</div>
+        <div class="card-title" style="font-size: 0.9rem; color: var(--text-grey);">ISP</div>
+        <div style="font-size: 1.25rem; font-weight: bold; color: var(--text-white); word-break: break-word;">
+            {{ result.isp if result else 'Unknown' }}
+        </div>
+    </div>
+</div>
+
+<!-- Surface Analysis: Open Ports & Vulnerabilities -->
+<div class="threats-section" style="margin-bottom: 2rem;">
+    <h2 class="section-title">> OPEN PORTS & EXPOSED SERVICES</h2>
+    <p style="color: var(--text-grey); font-size: 0.85rem; margin-top: -0.5rem; margin-bottom: 1rem;">(Click any port badge below to inspect service parameters)</p>
+    <div style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
+        {% set ports = result.open_ports if result and result.open_ports else [] %}
+        {% if ports %}
+            {% for port in ports %}
+                <button type="button" class="port-badge-btn" onclick="togglePortDetail({{ port }})" style="background: rgba(255, 34, 51, 0.15); border: 1px solid var(--accent-red); color: var(--accent-red); font-family: var(--font-mono); font-size: 0.95rem; padding: 0.45rem 0.85rem; border-radius: 4px; cursor: pointer; transition: all 0.2s ease;">
+                    ⚡ Port {{ port }} ▾
+                </button>
+            {% endfor %}
+        {% else %}
+            <span style="color: var(--text-grey);">No open ports indexed by Shodan.</span>
+        {% endif %}
+    </div>
+
+    <!-- Expandable Port Details Panel -->
+    <div id="port-details-panel" style="display: none; margin-top: 1.5rem; background: #1a0507; border: 1px solid var(--accent-red); border-radius: 4px; padding: 1.25rem; box-shadow: 0 0 20px rgba(255, 34, 51, 0.35); font-family: var(--font-mono);">
+        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255, 34, 51, 0.4); padding-bottom: 0.75rem; margin-bottom: 1rem;">
+            <div style="font-size: 1.15rem; font-weight: bold; color: var(--accent-red);" id="panel-port-title">
+                ⚡ PORT INSPECTION
+            </div>
+            <button type="button" onclick="closePortPanel()" style="background: transparent; border: none; color: var(--accent-red); font-family: var(--font-mono); cursor: pointer; font-size: 1rem; font-weight: bold;">[✖ CLOSE]</button>
+        </div>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.25rem; color: var(--text-white);">
+            <div>
+                <span style="color: var(--text-grey); display: block; font-size: 0.85rem; letter-spacing: 0.5px;">PORT NUMBER</span>
+                <span id="panel-port-num" style="font-size: 1.3rem; font-weight: bold; color: #ffffff;">-</span>
+            </div>
+            <div>
+                <span style="color: var(--text-grey); display: block; font-size: 0.85rem; letter-spacing: 0.5px;">COMMON SERVICE NAME</span>
+                <span id="panel-service-name" style="font-size: 1.3rem; font-weight: bold; color: var(--accent-red); text-shadow: 0 0 8px rgba(255, 34, 51, 0.6);">-</span>
+            </div>
+            <div>
+                <span style="color: var(--text-grey); display: block; font-size: 0.85rem; letter-spacing: 0.5px;">PROTOCOL</span>
+                <span id="panel-protocol" style="font-size: 1.3rem; font-weight: bold; color: #ffffff;">-</span>
+            </div>
+        </div>
+        <div style="margin-top: 1.25rem; padding-top: 0.85rem; border-top: 1px solid rgba(255, 34, 51, 0.3); display: flex; align-items: center; gap: 0.75rem; color: var(--accent-red); font-weight: bold; letter-spacing: 1px;">
+            <span>EXPOSURE STATUS:</span>
+            <span style="background: rgba(255, 34, 51, 0.25); border: 1px solid var(--accent-red); padding: 0.3rem 0.85rem; border-radius: 3px; box-shadow: 0 0 12px rgba(255, 34, 51, 0.4); color: #ff3344;">
+                EXPOSED TO PUBLIC INTERNET
+            </span>
+        </div>
+    </div>
+</div>
+
+<div class="threats-section" style="margin-bottom: 2rem;">
+    <h2 class="section-title">> DETECTED VULNERABILITIES (CVEs)</h2>
+    <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 1rem;">
+        {% set vulns = result.vulnerabilities if result and result.vulnerabilities else [] %}
+        {% if vulns %}
+            {% for cve in vulns %}
+                <span class="badge-risk badge-critical" style="font-size: 0.95rem; padding: 0.4rem 0.8rem;">
+                    {{ cve }}
+                </span>
+            {% endfor %}
+        {% else %}
+            <span style="color: var(--text-grey);">No known CVE vulnerabilities detected.</span>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Raw Output Details -->
+<div class="threats-section">
+    <details>
+        <summary style="cursor: pointer; color: var(--accent-red); font-weight: bold; outline: none;">
+            > RAW COMBINED THREAT DATA JSON
+        </summary>
+        <pre style="background: #000000; padding: 1.25rem; border: 1px solid var(--accent-dim-red); margin-top: 1rem; color: #ff8899; overflow-x: auto; font-size: 0.9rem;">{{ raw_json_pretty }}</pre>
+    </details>
+</div>
+
+<!-- Client-side JavaScript for Port Expansion -->
+<script>
+const serviceMap = {
+    21: "FTP",
+    22: "SSH",
+    23: "Telnet",
+    25: "SMTP",
+    53: "DNS",
+    80: "HTTP",
+    110: "POP3",
+    143: "IMAP",
+    443: "HTTPS",
+    465: "SMTPS",
+    587: "SMTP-Submission",
+    993: "IMAPS",
+    995: "POP3S",
+    1433: "MSSQL",
+    1521: "Oracle",
+    3306: "MySQL",
+    3389: "RDP",
+    5432: "PostgreSQL",
+    6379: "Redis",
+    8080: "HTTP-Alt",
+    8443: "HTTPS-Alt",
+    27017: "MongoDB"
+};
+
+let activePort = null;
+
+function togglePortDetail(port) {
+    const panel = document.getElementById("port-details-panel");
+    
+    // Toggle off if clicking the currently active port
+    if (activePort === port && panel.style.display !== "none") {
+        panel.style.display = "none";
+        activePort = null;
+        return;
+    }
+
+    activePort = port;
+    const serviceName = serviceMap[port] || "UNKNOWN / CUSTOM SERVICE";
+    const protocol = (port === 53) ? "UDP / TCP" : "TCP";
+
+    document.getElementById("panel-port-title").innerText = `⚡ PORT ${port} DETAILS`;
+    document.getElementById("panel-port-num").innerText = port;
+    document.getElementById("panel-service-name").innerText = serviceName;
+    document.getElementById("panel-protocol").innerText = protocol;
+
+    panel.style.display = "block";
+}
+
+function closePortPanel() {
+    const panel = document.getElementById("port-details-panel");
+    panel.style.display = "none";
+    activePort = null;
+}
+</script>
+{% endblock %}

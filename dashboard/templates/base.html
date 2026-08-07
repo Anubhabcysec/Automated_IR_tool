@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}ThreatOps — Real-time IP Threat Intelligence{% endblock %}</title>
+    <!-- Google Fonts: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+
+    <!-- Clean Modern Navbar -->
+    <nav class="navbar-clean">
+        <a href="/" class="brand-clean">
+            <span class="logo-square"></span>
+            <span>ThreatOps</span>
+        </a>
+        <div class="nav-links-clean">
+            <a href="/" class="nav-link-clean">Home</a>
+            <a href="/history" class="nav-link-clean">History</a>
+        </div>
+    </nav>
+
+    <!-- Main Container -->
+    <main class="main-container-clean">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            {% for category, message in messages %}
+              <div class="flash-msg">{{ message }}</div>
+            {% endfor %}
+          {% endif %}
+        {% endwith %}
+
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Clean Footer -->
+    <footer class="footer-clean">
+        <span>© 2026 ThreatOps • Real-time Threat Intelligence</span>
+    </footer>
+
+</body>
+</html>
