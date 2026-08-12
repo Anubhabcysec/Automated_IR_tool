@@ -9,6 +9,8 @@ class Config:
     SECRET_KEY = os.getenv("SECRET_KEY", "default-dev-secret-key-change-me")
     ABUSEIPDB_API_KEY = os.getenv("ABUSEIPDB_API_KEY", "")
     SHODAN_API_KEY = os.getenv("SHODAN_API_KEY", "")
+    NVD_API_KEY = os.getenv("NVD_API_KEY", "")
+    GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
     
     # SQLite Database Configuration
     SQLALCHEMY_DATABASE_URI = os.getenv("DATABASE_URL", "sqlite:///database/database.db")

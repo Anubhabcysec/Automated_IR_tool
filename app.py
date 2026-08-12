@@ -1,12 +1,19 @@
+import os
 import json
 import ipaddress
 from datetime import datetime, timezone
-from flask import Flask, render_template, request, redirect, url_for, jsonify, flash
+from concurrent.futures import ThreadPoolExecutor
+from flask import Flask, render_template, request, redirect, url_for, jsonify, flash, send_file
 from sqlalchemy.orm import sessionmaker
 
 from config import Config
 from database.models import SearchHistory, IPReport, create_tables
 from detection.risk_engine import analyze_ip
+from parser.nmap_scanner import scan_target, get_local_ip
+from detection.cve_lookup import get_cves_for_service
+from detection.mitre_mapper import map_ports_to_mitre
+from detection.ai_analyzer import analyze_with_ai
+from response.pdf_generator import generate_pdf_report
 
 app = Flask(
     __name__,
@@ -147,6 +154,118 @@ def clear_history():
     finally:
         session.close()
     return redirect(url_for('history'))
+
+
+@app.route('/api/local-ip')
+def api_local_ip():
+    """Returns local IP address of host system."""
+    return jsonify({"status": "success", "ip": get_local_ip()})
+
+
+@app.route('/scan')
+@app.route('/scanner')
+def scanner():
+    """Scanner page for running deep port scan, CVE lookup, MITRE mapping, and AI analysis."""
+    return render_template('scanner.html')
+
+
+@app.route('/api/scan', methods=['POST'])
+def api_scan():
+    """
+    POST route accepting JSON with target_ip field.
+    Runs nmap scan, parallel CVE lookup, MITRE technique mapping, AI analysis,
+    and PDF report generation.
+    """
+    data = request.get_json(silent=True) or {}
+    target_ip = data.get('target_ip', '').strip()
+
+    # Validate IP address
+    if not target_ip or not is_valid_ip(target_ip):
+        return jsonify({
+            "status": "error",
+            "message": f"'{target_ip}' is not a valid IPv4 or IPv6 address format."
+        }), 400
+
+    # 1. Scan target using parser/nmap_scanner.py
+    scan_results = scan_target(target_ip)
+    open_ports = scan_results.get("open_ports", [])
+
+    # 2. Parallel CVE lookup using ThreadPoolExecutor
+    cve_results = {}
+
+    def _fetch_cve(port_info):
+        service = port_info.get("service_name", "")
+        version = port_info.get("service_version", "")
+        port = port_info.get("port", "")
+        label = f"{service} {port}".strip() or f"port_{port}"
+        if service:
+            cves = get_cves_for_service(service, version)
+        else:
+            cves = []
+        return label, cves
+
+    if open_ports:
+        with ThreadPoolExecutor(max_workers=min(10, len(open_ports))) as executor:
+            cve_pairs = list(executor.map(_fetch_cve, open_ports))
+            for label, cves in cve_pairs:
+                cve_results[label] = cves
+
+    # 3. MITRE ATT&CK mapping
+    mitre_mappings = map_ports_to_mitre(open_ports)
+
+    # 4. AI Security Analysis
+    ai_analysis = analyze_with_ai(scan_results, cve_results, mitre_mappings)
+
+    # 5. Generate PDF report in screenshots/ directory
+    reports_dir = os.path.join(app.root_path, "screenshots")
+    os.makedirs(reports_dir, exist_ok=True)
+    safe_filename = f"report_{target_ip.replace(':', '_')}.pdf"
+    output_pdf_path = os.path.join(reports_dir, safe_filename)
+
+    generate_pdf_report(
+        scan_data=scan_results,
+        cve_data=cve_results,
+        mitre_data=mitre_mappings,
+        ai_analysis=ai_analysis,
+        output_path=output_pdf_path
+    )
+
+    pdf_download_url = url_for('download_report', ip=target_ip)
+
+    return jsonify({
+        "status": "success",
+        "pdf_url": pdf_download_url,
+        "data": {
+            "scan_results": scan_results,
+            "cve_results": cve_results,
+            "mitre_mappings": mitre_mappings,
+            "ai_analysis": ai_analysis
+        }
+    })
+
+
+@app.route('/download/report/<ip>')
+def download_report(ip):
+    """GET route serving the generated PDF report for download."""
+    ip = ip.strip()
+    if not is_valid_ip(ip):
+        flash(f"'{ip}' is not a valid IPv4 or IPv6 address format.", "error")
+        return redirect(url_for('home'))
+
+    reports_dir = os.path.join(app.root_path, "screenshots")
+    safe_filename = f"report_{ip.replace(':', '_')}.pdf"
+    pdf_path = os.path.join(reports_dir, safe_filename)
+
+    if not os.path.exists(pdf_path):
+        flash(f"Report PDF for IP '{ip}' does not exist.", "error")
+        return redirect(url_for('scanner'))
+
+    return send_file(
+        pdf_path,
+        as_attachment=True,
+        download_name=f"Security_Report_{ip}.pdf",
+        mimetype="application/pdf"
+    )
 
 
 if __name__ == '__main__':

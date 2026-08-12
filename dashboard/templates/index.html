@@ -1,38 +1,289 @@
-{% extends "base.html" %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ThreatOps — System Initialization</title>
+    <!-- Google Fonts: Share Tech Mono -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet">
+    
+    <script>
+        // Check localStorage before rendering body — skip intro for returning visitors
+        if (localStorage.getItem('has_visited_intro')) {
+            window.location.href = '/scan';
+        }
+    </script>
 
-{% block title %}ThreatOps — Analyze Any IP Address{% endblock %}
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
 
-{% block content %}
-<!-- Hero Section -->
-<section class="hero-clean">
-    <h1 class="hero-heading-clean">Analyze Any IP Address</h1>
-    <p class="hero-subtitle-clean">Real-time threat intelligence powered by AbuseIPDB and Shodan. Paste any IP to get instant abuse reports, open ports, and risk assessment.</p>
+        html, body {
+            width: 100%;
+            height: 100%;
+            background-color: #080808;
+            color: #ffffff;
+            font-family: 'Share Tech Mono', monospace;
+            overflow: hidden;
+            position: relative;
+        }
 
-    <!-- Search Form -->
-    <form action="/analyze" method="POST" class="search-form-clean">
-        <input type="text" name="ip" class="search-input-clean" placeholder="> enter ip address" required autocomplete="off" spellcheck="false">
-        <button type="submit" class="search-btn-clean">Analyze</button>
-    </form>
-</section>
+        /* Subtle red vignette around screen edges */
+        .vignette {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            pointer-events: none;
+            box-shadow: inset 0 0 120px rgba(255, 34, 51, 0.25);
+            z-index: 10;
+        }
 
-<!-- Three Feature Cards Grid -->
-<section class="features-grid-clean">
-    <div class="feature-card-clean">
-        <div class="feature-icon-clean">🛡️</div>
-        <h3 class="feature-title-clean">Abuse Intelligence</h3>
-        <p class="feature-desc-clean">Direct querying of AbuseIPDB confidence metrics, total reports, country geolocation, and ISP parameters.</p>
+        /* Subtle scanline overlay animation */
+        .scanlines {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 200vh;
+            pointer-events: none;
+            background: linear-gradient(
+                to bottom,
+                rgba(255, 255, 255, 0),
+                rgba(255, 255, 255, 0) 50%,
+                rgba(0, 0, 0, 0.45) 50%,
+                rgba(0, 0, 0, 0.45)
+            );
+            background-size: 100% 4px;
+            opacity: 0.3;
+            animation: scrollScanlines 12s linear infinite;
+            z-index: 9;
+        }
+
+        @keyframes scrollScanlines {
+            0% { transform: translateY(0); }
+            100% { transform: translateY(-50%); }
+        }
+
+        /* Stage Centering Container */
+        .intro-stage {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            max-width: 480px;
+            padding: 0 1rem;
+            z-index: 20;
+        }
+
+        /* Step 4: Title THREATOPS */
+        .title-text {
+            color: #ffffff;
+            font-size: 14px;
+            font-family: 'Share Tech Mono', monospace;
+            letter-spacing: 0.3em;
+            text-transform: uppercase;
+            min-height: 20px;
+            text-shadow: 0 0 10px rgba(255, 255, 255, 0.6);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        /* Step 2 & 3: Red dot & expand into thin red line */
+        .red-dot {
+            width: 8px;
+            height: 8px;
+            background-color: #ff2233;
+            border-radius: 50%;
+            box-shadow: 0 0 14px #ff2233;
+            opacity: 0;
+            transition: opacity 0.2s ease, transform 0.3s ease;
+            margin: 6px 0;
+        }
+
+        .red-dot.pulse {
+            opacity: 1;
+            transform: scale(1.6);
+            box-shadow: 0 0 22px #ff2233;
+        }
+
+        .red-line {
+            height: 1px;
+            background-color: #ff2233;
+            box-shadow: 0 0 10px #ff2233;
+            width: 0%;
+            margin: 10px 0;
+            transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .red-line.expanded {
+            width: 100%;
+        }
+
+        /* Step 5 & 7: Subtitle text */
+        .subtitle-text {
+            color: #ff2233;
+            font-size: 12px;
+            font-family: 'Share Tech Mono', monospace;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            min-height: 18px;
+            text-shadow: 0 0 8px rgba(255, 34, 51, 0.7);
+            opacity: 0;
+            transition: opacity 0.2s ease;
+        }
+
+        /* Step 6: Fake loading bar */
+        .loading-bar-container {
+            width: 220px;
+            height: 4px;
+            background-color: #1a1a1a;
+            border-radius: 2px;
+            margin-top: 14px;
+            overflow: hidden;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .loading-bar-fill {
+            height: 100%;
+            width: 0%;
+            background-color: #ff2233;
+            box-shadow: 0 0 12px #ff2233;
+            transition: width 1s linear;
+        }
+
+        /* Step 8: Screen fade to black overlay */
+        .fade-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background-color: #080808;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s ease-in-out;
+            z-index: 100;
+        }
+
+        .fade-overlay.active {
+            opacity: 1;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="vignette"></div>
+    <div class="scanlines"></div>
+
+    <div class="intro-stage">
+        <div id="titleText" class="title-text"></div>
+        <div id="redLine" class="red-line"></div>
+        <div id="redDot" class="red-dot"></div>
+        <div id="subtitleText" class="subtitle-text"></div>
+        
+        <div id="loadingContainer" class="loading-bar-container">
+            <div id="loadingFill" class="loading-bar-fill"></div>
+        </div>
     </div>
 
-    <div class="feature-card-clean">
-        <div class="feature-icon-clean">🌐</div>
-        <h3 class="feature-title-clean">Port Analysis</h3>
-        <p class="feature-desc-clean">Shodan surface host detection indexing exposed ports, running protocols, and public internet availability.</p>
-    </div>
+    <div id="fadeOverlay" class="fade-overlay"></div>
 
-    <div class="feature-card-clean">
-        <div class="feature-icon-clean">⚡</div>
-        <h3 class="feature-title-clean">Risk Scoring</h3>
-        <p class="feature-desc-clean">Automated categorization classifying risk levels into Critical, High, Medium, and Low threat tiers.</p>
-    </div>
-</section>
-{% endblock %}
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // Guard: if already visited, redirect immediately
+            if (localStorage.getItem('has_visited_intro')) {
+                window.location.href = '/scan';
+                return;
+            }
+
+            const redDot = document.getElementById('redDot');
+            const redLine = document.getElementById('redLine');
+            const titleText = document.getElementById('titleText');
+            const subtitleText = document.getElementById('subtitleText');
+            const loadingContainer = document.getElementById('loadingContainer');
+            const loadingFill = document.getElementById('loadingFill');
+            const fadeOverlay = document.getElementById('fadeOverlay');
+
+            // Typewriter helper
+            function typeText(element, text, durationMs, callback) {
+                element.style.opacity = '1';
+                element.textContent = '';
+                const charDelay = durationMs / text.length;
+                let i = 0;
+                const timer = setInterval(() => {
+                    if (i < text.length) {
+                        element.textContent += text.charAt(i);
+                        i++;
+                    } else {
+                        clearInterval(timer);
+                        if (callback) callback();
+                    }
+                }, charDelay);
+            }
+
+            // --- INTRO SEQUENCE TIMELINE ---
+
+            // Step 1: (0.0s - 0.5s) Full black screen
+
+            // Step 2: (0.5s) Red dot appears in center & pulses once
+            setTimeout(() => {
+                redDot.classList.add('pulse');
+            }, 500);
+
+            // Step 3: (1.0s) Dot expands into thin red horizontal line
+            setTimeout(() => {
+                redDot.style.display = 'none';
+                redLine.classList.add('expanded');
+            }, 1000);
+
+            // Step 4: (1.5s) Text above line "THREATOPS" types letter by letter
+            setTimeout(() => {
+                typeText(titleText, "THREATOPS", 400);
+            }, 1500);
+
+            // Step 5: (2.0s) Subtitle "INITIALIZING THREAT INTELLIGENCE SYSTEM..." types out
+            setTimeout(() => {
+                typeText(subtitleText, "INITIALIZING THREAT INTELLIGENCE SYSTEM...", 450);
+            }, 2000);
+
+            // Step 6: (2.5s - 3.5s) Loading bar appears and animates 0% -> 100% width over 1s
+            setTimeout(() => {
+                loadingContainer.style.opacity = '1';
+                setTimeout(() => {
+                    loadingFill.style.width = '100%';
+                }, 50);
+            }, 2500);
+
+            // Step 7: (3.5s) Loading bar completes, text changes to "ACCESS GRANTED" for 0.3s
+            setTimeout(() => {
+                subtitleText.style.color = '#ff2233';
+                subtitleText.textContent = "ACCESS GRANTED";
+            }, 3500);
+
+            // Step 8: (4.0s) Entire screen fades to black
+            setTimeout(() => {
+                fadeOverlay.classList.add('active');
+            }, 4000);
+
+            // Step 9: (4.2s) Save localStorage flag and automatically redirect to /scan
+            setTimeout(() => {
+                localStorage.setItem('has_visited_intro', 'true');
+                window.location.href = '/scan';
+            }, 4200);
+        });
+    </script>
+</body>
+</html>
